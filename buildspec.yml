@@ -1,0 +1,36 @@
+version: 0.2 
+ 
+env: 
+    variables: 
+        env: "test" 
+        appVersion: "1.0" 
+phases: 
+  pre_build: 
+    commands: 
+      - echo Logging in to Amazon ECR... 
+      - aws --version 
+      - $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email) 
+      - REPOSITORY_URI=713814685693.dkr.ecr.us-east-1.amazonaws.com/talend-job-test
+      - IMAGE_TAG=$(echo $(date +%s | sha256sum | base64 | head -c 20)) 
+      - IMAGE_TAG="$IMAGE_TAG-$env-$appVersion" 
+      - echo REPOSITORY_URI - $REPOSITORY_URI 
+      - echo IMAGE_TAG -  $IMAGE_TAG 
+  build: 
+    commands:       
+      - echo Present working directory       
+      - pwd       
+      - ls -lrt 
+      - echo Build started on `date` 
+      - echo Building the Docker image...           
+      - docker build -t $REPOSITORY_URI:latest . 
+      - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG  
+  post_build: 
+    commands: 
+      - echo Build completed on `date` 
+      - echo Pushing the Docker images... 
+      - docker push $REPOSITORY_URI:latest 
+      - docker push $REPOSITORY_URI:$IMAGE_TAG 
+      - echo Writing image definitions file... 
+      - printf '[{"name":"asset-management-tool-TEST","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > ../imagedefinitions.json 
+artifacts: 
+    files: imagedefinitions.json 
